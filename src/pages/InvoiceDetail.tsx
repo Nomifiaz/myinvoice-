@@ -42,11 +42,42 @@ export default function InvoiceDetail() {
     window.print();
   };
 
+  const handleDownload = () => {
+    // Standard trick to trigger print which allows "Save as PDF"
+    window.print();
+  };
+
   if (loading) return <div className="h-64 flex items-center justify-center font-bold text-slate-400 animate-pulse">Loading Invoice Details...</div>;
   if (!invoice) return <div className="h-64 flex items-center justify-center font-bold text-slate-400">Invoice not found.</div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
+      <style>
+        {`
+          @media print {
+            body { 
+              background: white !important; 
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            .no-print { display: none !important; }
+            .print-container { 
+              box-shadow: none !important; 
+              border: none !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            aside, header { display: none !important; }
+            main { padding: 0 !important; margin: 0 !important; }
+            .bg-slate-50 { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
+            .bg-indigo-600 { background-color: #4f46e5 !important; -webkit-print-color-adjust: exact; }
+            .bg-indigo-500 { background-color: #6366f1 !important; -webkit-print-color-adjust: exact; }
+            .text-white { color: white !important; -webkit-print-color-adjust: exact; }
+          }
+        `}
+      </style>
+
       <div className="flex items-center justify-between no-print">
         <button 
           onClick={() => navigate('/invoices')}
@@ -61,11 +92,14 @@ export default function InvoiceDetail() {
              className="inline-flex items-center px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm"
           >
             <Printer className="w-4 h-4 mr-2" />
-            Print / PDF
+            Print Invoice
           </button>
-          <button className="inline-flex items-center px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
-            <Share2 className="w-4 h-4 mr-2" />
-            Share
+          <button 
+             onClick={handleDownload}
+             className="inline-flex items-center px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download PDF
           </button>
         </div>
       </div>
@@ -73,7 +107,7 @@ export default function InvoiceDetail() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100"
+        className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100 print-container"
       >
         {/* Status Banner */}
         <div className={cn(
@@ -94,7 +128,7 @@ export default function InvoiceDetail() {
         </div>
 
         {/* Invoice Page */}
-        <div className="p-12 space-y-12 bg-white print:p-0">
+        <div className="p-12 space-y-12 bg-white print:p-8">
           {/* Header */}
           <div className="flex justify-between items-start">
             <div className="space-y-4">
@@ -193,7 +227,7 @@ export default function InvoiceDetail() {
                 <span>PKR {(invoice.totalAmount - invoice.taxAmount).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center text-slate-500 font-bold px-4">
-                <span className="text-xs uppercase tracking-widest">Sales Tax (18%)</span>
+                <span className="text-xs uppercase tracking-widest">Sales Tax ({(invoice.taxAmount / (invoice.totalAmount - invoice.taxAmount) * 100).toFixed(0)}%)</span>
                 <span>PKR {invoice.taxAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center bg-indigo-600 text-white rounded-2xl p-6 shadow-xl shadow-indigo-100">

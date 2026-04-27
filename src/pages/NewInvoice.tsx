@@ -69,12 +69,38 @@ export default function NewInvoice() {
 
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...formData.items];
-    newItems[index] = { ...newItems[index], [field]: value };
+    const item = { ...newItems[index], [field]: value };
+    
+    // If productId changed, default the price/tax from product info if available
+    if (field === 'productId') {
+      const product = products.find((p: any) => p.id.toString() === value.toString());
+      if (product) {
+        // We could also set a default price if products had one, but they don't in this schema
+      }
+    }
+    
+    newItems[index] = item;
     setFormData({ ...formData, items: newItems });
+  };
+
+  const getTaxRate = (productId: string) => {
+    const product = products.find((p: any) => p.id.toString() === productId.toString());
+    return product ? product.taxRate : 0;
   };
 
   const calculateSubtotal = () => {
     return formData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+  };
+
+  const calculateTotalTax = () => {
+    return formData.items.reduce((sum, item) => {
+      const rate = getTaxRate(item.productId);
+      return sum + (item.quantity * item.price * (rate / 100));
+    }, 0);
+  };
+
+  const calculateGrandTotal = () => {
+    return calculateSubtotal() + calculateTotalTax();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -124,7 +150,7 @@ export default function NewInvoice() {
                 required
                 value={formData.buyer.buyerBusinessName}
                 onChange={(e) => setFormData({ ...formData, buyer: { ...formData.buyer, buyerBusinessName: e.target.value }})}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"
                 placeholder="Enter customer name"
               />
             </div>
@@ -135,7 +161,7 @@ export default function NewInvoice() {
                 type="text"
                 value={formData.buyer.buyerNTNCNIC}
                 onChange={(e) => setFormData({ ...formData, buyer: { ...formData.buyer, buyerNTNCNIC: e.target.value }})}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 font-medium"
                 placeholder="e.g. 1234567-8"
               />
             </div>
@@ -145,7 +171,7 @@ export default function NewInvoice() {
               <select
                 value={formData.buyer.buyerRegistrationType}
                 onChange={(e) => setFormData({ ...formData, buyer: { ...formData.buyer, buyerRegistrationType: e.target.value }})}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 appearance-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 appearance-none font-medium"
               >
                 <option value="Unregistered">Unregistered</option>
                 <option value="Registered">Registered</option>
@@ -157,7 +183,7 @@ export default function NewInvoice() {
               <select
                 value={formData.buyer.buyerProvince}
                 onChange={(e) => setFormData({ ...formData, buyer: { ...formData.buyer, buyerProvince: e.target.value }})}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 appearance-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 appearance-none font-medium"
               >
                 {['Punjab', 'Sindh', 'KPK', 'Balochistan', 'Islamabad'].map(p => (
                   <option key={p} value={p}>{p}</option>
@@ -174,7 +200,7 @@ export default function NewInvoice() {
                   required
                   value={formData.invoiceDate}
                   onChange={(e) => setFormData({ ...formData, invoiceDate: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 font-medium"
                 />
               </div>
             </div>
@@ -184,7 +210,7 @@ export default function NewInvoice() {
               <textarea
                 value={formData.buyer.buyerAddress}
                 onChange={(e) => setFormData({ ...formData, buyer: { ...formData.buyer, buyerAddress: e.target.value }})}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 min-h-[80px]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 min-h-[80px] font-medium"
                 placeholder="Shipping/Billing address..."
               />
             </div>
@@ -213,8 +239,9 @@ export default function NewInvoice() {
           </div>
 
           <div className="p-8 space-y-6">
-            <div className="hidden md:grid grid-cols-12 gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest px-4">
-              <div className="col-span-6 text-left">Product / Service</div>
+            <div className="hidden md:grid grid-cols-12 gap-4 text-xs font-black text-slate-400 uppercase tracking-widest px-4">
+              <div className="col-span-4 text-left">Product / Service</div>
+              <div className="col-span-2 text-center">Tax Rate</div>
               <div className="col-span-2 text-center">Qty</div>
               <div className="col-span-3 text-right">Unit Price</div>
               <div className="col-span-1"></div>
@@ -222,86 +249,102 @@ export default function NewInvoice() {
 
             <div className="space-y-4">
               <AnimatePresence mode="popLayout">
-                {formData.items.map((item, idx) => (
-                  <motion.div 
-                    layout
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                    key={idx} 
-                    className="grid grid-cols-12 gap-4 items-center p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group"
-                  >
-                    <div className="col-span-12 md:col-span-6">
-                      <select
-                        required
-                        value={item.productId}
-                        onChange={(e) => updateItem(idx, 'productId', e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium"
-                      >
-                        <option value="">Select a product</option>
-                        {products.map(p => (
-                          <option key={p.id} value={p.id}>{p.itemName} ({p.hsCode})</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-span-6 md:col-span-2">
-                       <input
-                        type="number"
-                        required
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value))}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-center"
-                        placeholder="Qty"
-                      />
-                    </div>
-                    <div className="col-span-6 md:col-span-3">
-                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">PKR</span>
-                        <input
+                {formData.items.map((item, idx) => {
+                  const rate = getTaxRate(item.productId);
+                  return (
+                    <motion.div 
+                      layout
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      key={idx} 
+                      className="grid grid-cols-12 gap-4 items-center p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:border-indigo-100"
+                    >
+                      <div className="col-span-12 md:col-span-4">
+                        <select
+                          required
+                          value={item.productId}
+                          onChange={(e) => updateItem(idx, 'productId', e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700"
+                        >
+                          <option value="">Select a product</option>
+                          {products.map((p: any) => (
+                            <option key={p.id} value={p.id}>{p.itemName}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-4 md:col-span-2 flex flex-col items-center justify-center">
+                        <div className="text-[10px] font-black text-slate-400 uppercase md:hidden mb-1">Tax Rate</div>
+                        <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">{rate}%</span>
+                      </div>
+                      <div className="col-span-4 md:col-span-2">
+                         <div className="text-[10px] font-black text-slate-400 uppercase md:hidden mb-1 text-center">Qty</div>
+                         <input
                           type="number"
                           required
-                          value={item.price}
-                          onChange={(e) => updateItem(idx, 'price', parseFloat(e.target.value))}
-                          className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm font-bold text-right"
-                          placeholder="0.00"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value))}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-center"
+                          placeholder="Qty"
                         />
-                       </div>
-                    </div>
-                    <div className="col-span-12 md:col-span-1 flex justify-end">
-                      <button 
-                        type="button"
-                        onClick={() => removeItem(idx)}
-                        disabled={formData.items.length === 1}
-                        className="p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors disabled:opacity-0"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
+                      </div>
+                      <div className="col-span-4 md:col-span-3">
+                         <div className="text-[10px] font-black text-slate-400 uppercase md:hidden mb-1 text-right">Price</div>
+                         <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-black">PKR</span>
+                          <input
+                            type="number"
+                            required
+                            value={item.price}
+                            onChange={(e) => updateItem(idx, 'price', parseFloat(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-12 pr-4 text-sm font-bold text-right"
+                            placeholder="0.00"
+                          />
+                         </div>
+                      </div>
+                      <div className="col-span-12 md:col-span-1 flex justify-end">
+                        <button 
+                          type="button"
+                          onClick={() => removeItem(idx)}
+                          disabled={formData.items.length === 1}
+                          className="p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors disabled:opacity-0"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
 
             {/* Total Calculation */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8 border-t border-slate-50">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-8 pt-10 border-t border-slate-100">
               <div className="flex-1 max-w-sm">
-                <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-start">
-                  <Calculator className="w-5 h-5 text-amber-600 mr-3 shrink-0" />
-                  <p className="text-xs font-medium text-amber-800 leading-relaxed">
-                    Note: Taxes (ST/FED) will be calculated automatically based on product HS codes and registration status.
-                  </p>
+                <div className="bg-amber-50 border border-amber-100 p-5 rounded-2xl flex items-start">
+                  <Calculator className="w-5 h-5 text-amber-600 mr-3 shrink-0 mt-1" />
+                  <div>
+                    <h4 className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">Live FBR Calculation</h4>
+                    <p className="text-xs font-medium text-amber-800/80 leading-relaxed">
+                      Sales tax is calculated per item based on their HS Code {business?.isFbrEnabled ? "and pushed live to FBR System." : "ready for compliance."}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="w-full md:w-80 space-y-3">
-                <div className="flex justify-between items-center text-slate-500 font-medium">
-                  <span>Subtotal</span>
-                  <span>PKR {calculateSubtotal().toLocaleString()}</span>
+              <div className="w-full md:w-96 space-y-4">
+                <div className="flex justify-between items-center text-slate-500 font-bold px-2">
+                  <span className="text-sm">Value Excluding Tax</span>
+                  <span className="text-slate-800">PKR {calculateSubtotal().toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center text-indigo-600 font-bold text-xl pt-3 border-t border-slate-100">
-                  <span>Estimated Total</span>
-                  <span>PKR {calculateSubtotal().toLocaleString()}</span>
+                <div className="flex justify-between items-center text-slate-500 font-bold px-2 border-b border-slate-100 pb-4">
+                  <span className="text-sm">Total Sales Tax</span>
+                  <span className="text-indigo-600">+ PKR {calculateTotalTax().toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-900 text-white rounded-2xl p-6 shadow-xl shadow-slate-200">
+                  <span className="font-bold text-slate-400">Grand Total</span>
+                  <span className="text-3xl font-black tracking-tighter">PKR {calculateGrandTotal().toLocaleString()}</span>
                 </div>
               </div>
             </div>
