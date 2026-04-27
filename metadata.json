@@ -1,0 +1,11 @@
+{
+  "name": "ProPanel Business Suite",
+  "description": "A professional business management dashboard for invoicing, products, and FBR-integrated compliance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "Authentication",
+    "Business Management",
+    "Product Inventory",
+    "Professional Invoicing"
+  ]
+}
